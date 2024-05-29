@@ -5,7 +5,7 @@ account: impact-initiatives
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 12088616
-bundleId: 8673282
+bundleId: 8674523
 url: https://impact-initiatives.shinyapps.io/QDB_browser/
 version: 1
 asMultiple: FALSE

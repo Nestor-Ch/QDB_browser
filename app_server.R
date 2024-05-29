@@ -12,7 +12,7 @@ server <- function(input, output) {
     <br>
     <br>'
   })
-
+  
   
   output$text_column1 <- renderText({
     '<strong>Single comparison.</strong><br>
@@ -94,9 +94,9 @@ server <- function(input, output) {
   
   datasetInput <- reactiveVal(NULL)
   
+  
   # # Reactive expression to fetch the selected project
   observeEvent(input$process,{
-    
     if(!is.null(input$newName)){
       needed_ids <- database_project %>% 
         filter(project_ID %in% input$newName)%>% 
@@ -208,7 +208,7 @@ server <- function(input, output) {
           
           removeModal()
           datasetInput(df_choices_added)
-        }else{
+        }else if(input$table_type == 'Multiple comparison' & length(input$newName)>=2){
           
           data_wide <- df_choices_added %>%
             select(true_ID,sector,TABLE_ID,q.type,name,english_question, ukrainian_question, russian_question,
@@ -232,6 +232,8 @@ server <- function(input, output) {
           
           removeModal()
           datasetInput(data_wide)
+        }else{
+          datasetInput(NULL)
         }
         
         if(length(check_n_proj)>length(check_n_proj_2)){
@@ -272,86 +274,95 @@ server <- function(input, output) {
     df <- datasetInput()
     if(is.null(df)){
       return(NULL)
-    }
-    
-    
-    if(input$table_type == 'Single comparison'|
-       (input$table_type != 'Single comparison' & is.null(input$newName))){
-      n_groups <- length(unique(df$true_ID))
-      
-      colors <- rep_len(c('#D3D3D3','white'),n_groups)
-      
-      names(colors) <- unique(df$true_ID)
-      
-      df <- df %>% 
-        mutate(across(c(sector,q.type, TABLE_ID), ~ as.factor(.x)))
-      
-      datatable(df,
-                filter = "top",
-                class = list(stripe = FALSE),
-                options = list(
-                  dom = 'lfrtipB',
-                  pageLength = 100,
-                  scrollX=TRUE,
-                  autoWidth = TRUE,
-                  columnDefs = list(
-                    list(targets = 'true_ID', visible = FALSE)
-                  )
-                )
-      ) %>% 
-        formatStyle(
-          'true_ID',
-          target = 'row',
-          backgroundColor = styleEqual(names(colors), colors)
-        )
     }else{
       
-      relevant_cols <- which(grepl('sector',names(df)))
-      relevant_cols <- relevant_cols[relevant_cols>8]
-      
-      datatable(
-        df,
-        filter = "top",
-        class = list(stripe = FALSE),
-        options = list(
-          dom = 'lfrtipB',
-          pageLength = 100,
-          columnDefs = list(
-            list(targets = "_all", width = '15px')  # Adjust the width as needed
-          ),
-          rownames = FALSE,
-          initComplete = JS(
-            "function(settings, json) {",
-            "  var header = '<tr><th></th>';",
-            "  var columns = settings.aoColumns.map(col => col.sTitle);",
-            "  var projectIDs = [];",
-            "  columns.forEach(function(col) {",
-            "    var parts = col.split('_set_');",
-            "    if (parts.length > 1 && !projectIDs.includes(parts[1])) {",
-            "      projectIDs.push(parts[1]);",
-            "    }",
-            "  });",
-            "  projectIDs.forEach(function(id) {",
-            "    var colspan = columns.filter(col => col.includes(id)).length;",
-            "    header += '<th colspan=\"' + colspan + '\">' + id + '</th>';",
-            "  });",
-            "  header += '</tr>';",
-            "  $(settings.nTHead).prepend(header);",
-            "  // Modify the second row headers",
-            "  $(settings.nTHead).find('tr:eq(1) th').each(function() {",
-            "    var text = $(this).text().replace(/_set_.*/, '');",
-            "    $(this).text(text);",
-            "  });",
-            "}"
-          )
-        )
-      )%>%
-        formatStyle(relevant_cols, `border-left` = "solid 2px #000") %>% 
-        formatStyle(0:ncol(df), `border-bottom` = "solid 2px #000") %>% 
-        formatStyle(0:ncol(df),target = 'cell',
-                    backgroundColor = styleEqual(NA, '#ededed')
-        )
-      
+      if(input$table_type == 'Single comparison'){
+        n_groups <- length(unique(df$true_ID))
+        
+        colors <- rep_len(c('#D3D3D3','white'),n_groups)
+        
+        names(colors) <- unique(df$true_ID)
+        if(nrow(df)>0){
+          df <- df %>% 
+            mutate(across(any_of(c('sector','q.type', 'TABLE_ID')), ~ as.factor(.x)))
+          
+          datatable(df,
+                    filter = "top",
+                    class = list(stripe = FALSE),
+                    options = list(
+                      dom = 'lfrtipB',
+                      pageLength = 100,
+                      scrollX=TRUE,
+                      autoWidth = TRUE,
+                      columnDefs = list(
+                        list(targets = 'true_ID', visible = FALSE)
+                      )
+                    )
+          ) %>% 
+            formatStyle(
+              'true_ID',
+              target = 'row',
+              backgroundColor = styleEqual(names(colors), colors)
+            )
+        }
+      }else if(input$table_type == 'Multiple comparison' & length(input$newName)>=2 &
+               !is.null(input$newName)){
+        
+        if(all(unique(gsub('(.*\\_set_)|(\\_R.*)','',names(df))) %in% input$newName)){
+          if(nrow(df)>0){
+            relevant_cols <- which(grepl('sector',names(df)))
+            relevant_cols <- relevant_cols[relevant_cols>8]
+            
+            
+            tbl <- datatable(
+              df,
+              filter = "top",
+              class = list(stripe = FALSE),
+              options = list(
+                dom = 'lfrtipB',
+                pageLength = 100,
+                columnDefs = list(
+                  list(targets = "_all", width = '15px')  # Adjust the width as needed
+                ),
+                rownames = FALSE,
+                initComplete = JS(
+                  "function(settings, json) {",
+                  "  var header = '<tr><th></th>';",
+                  "  var columns = settings.aoColumns.map(col => col.sTitle);",
+                  "  var projectIDs = [];",
+                  "  columns.forEach(function(col) {",
+                  "    var parts = col.split('_set_');",
+                  "    if (parts.length > 1 && !projectIDs.includes(parts[1])) {",
+                  "      projectIDs.push(parts[1]);",
+                  "    }",
+                  "  });",
+                  "  projectIDs.forEach(function(id) {",
+                  "    var colspan = columns.filter(col => col.includes(id)).length;",
+                  "    header += '<th colspan=\"' + colspan + '\">' + id + '</th>';",
+                  "  });",
+                  "  header += '</tr>';",
+                  "  $(settings.nTHead).prepend(header);",
+                  "  // Modify the second row headers",
+                  "  $(settings.nTHead).find('tr:eq(1) th').each(function() {",
+                  "    var text = $(this).text().replace(/_set_.*/, '');",
+                  "    $(this).text(text);",
+                  "  });",
+                  "}"
+                )
+              )
+            )%>%
+              formatStyle(relevant_cols, `border-left` = "solid 2px #000") %>% 
+              formatStyle(0:ncol(df), `border-bottom` = "solid 2px #000") %>% 
+              formatStyle(0:ncol(df),target = 'cell',
+                          backgroundColor = styleEqual(NA, '#ededed')
+              )
+            
+            
+            return(tbl)
+            
+          }
+        }
+      }
     }
   })
   
@@ -423,7 +434,7 @@ server <- function(input, output) {
         
         for(name in ls_names){
           range <- which(names(excel_frame) %in% name)
-            mergeCells(wb, "Data", cols = range, rows = 1)
+          mergeCells(wb, "Data", cols = range, rows = 1)
           if(all(range %in% columns_to_format)){
             addStyle(wb, sheet = "Data", style = centered_style_grey,
                      cols = range, rows = 1, gridExpand = TRUE)
@@ -435,7 +446,7 @@ server <- function(input, output) {
       }
       
       border_style <- createStyle(border ='Left')
-
+      
       addStyle(wb, sheet = "Data", border_style, rows = 1:(nrow(excel_frame)+1), 
                cols = ncol(excel_frame)+1, gridExpand = TRUE)
       

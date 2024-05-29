@@ -6,6 +6,10 @@ library(data.table)
 library(DT)
 library(dplyr)
 
+# to do
+# get the feedback from Joe and Emanuel
+
+
 source('www/src/stuff.R')
 source('www/src/get_db.R')
 source('www/src/functions.R')
